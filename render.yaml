@@ -17,4 +17,3 @@ services:
 databases:
   - name: kaab-terra-db
     plan: free
-    postgresVersion: 15
