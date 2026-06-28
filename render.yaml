@@ -13,7 +13,6 @@ services:
       - key: SECRET_KEY
         value: kaab_terra_super_secret_key_change_me_in_production
 
-# 2. Configuración de la Base de Datos PostgreSQL en la nube
 databases:
   - name: kaab-terra-db
     plan: free
