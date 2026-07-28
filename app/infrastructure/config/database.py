@@ -4,13 +4,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# 💡 EXPLICACIÓN: Si existe DATABASE_URL (en Render), la usa. Si no, usa tu local de Postgres.
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
     "postgresql://postgres:root@localhost:5432/kaab_terra_db"
 )
 
-# Render usa URLs que empiezan con 'postgres://', pero SQLAlchemy requiere 'postgresql://'
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 

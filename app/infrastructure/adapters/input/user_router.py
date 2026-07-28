@@ -4,8 +4,13 @@ from sqlalchemy.orm import Session
 from app.infrastructure.config.database import get_db
 from app.infrastructure.adapters.output.postgres_repository import PostgresUserRepositoryAdapter
 from app.use_cases.register_user import RegisterUserUseCase
-from app.use_cases.login_user import LoginUserUseCase  # 👈 Importamos el nuevo caso de uso
+from app.use_cases.login_user import LoginUserUseCase
 from app.infrastructure.adapters.input import schemas
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -15,29 +20,46 @@ def registrar_usuario(usuario_in: schemas.UsuarioCreate, db: Session = Depends(g
     use_case = RegisterUserUseCase(repo_adapter)
     try:
         user_domain = use_case.execute(
-            fullName=usuario_in.fullName, email=usuario_in.email,
-            phoneNumber=usuario_in.phoneNumber, raw_password=usuario_in.password,
-            acceptTerms=usuario_in.acceptTerms
+            fullName=usuario_in.fullName, 
+            email=usuario_in.email,
+            phoneNumber=usuario_in.phoneNumber, 
+            raw_password=usuario_in.password,
+            acceptTerms=usuario_in.acceptTerms,
+            rol=usuario_in.rol if hasattr(usuario_in, 'rol') and usuario_in.rol else "Productor"
         )
         return user_domain
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error en registro: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.post("/login", response_model=schemas.LoginResponse)
 def iniciar_sesion(login_in: schemas.LoginRequest, db: Session = Depends(get_db)):
-    # Orquestación hexagonal de dependencias
-    repo_adapter = PostgresUserRepositoryAdapter(db)
-    use_case = LoginUserUseCase(repo_adapter)
-    
     try:
+        logger.info(f"Intento de login para: {login_in.email}")
+        
+        repo_adapter = PostgresUserRepositoryAdapter(db)
+        use_case = LoginUserUseCase(repo_adapter)
+        
         session_data = use_case.execute(
             email=login_in.email, 
             raw_password=login_in.password
         )
+        
+        logger.info(f"Login exitoso para: {login_in.email}")
         return session_data
+        
     except ValueError as e:
-        # Por seguridad en Login, si el correo o password fallan devolvemos 401 Unauthorized
+        logger.warning(f"Error de validación en login: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error interno en login: {e}")
+        # Retornar un error 500 con un mensaje JSON válido
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno del servidor: {str(e)}"
         )
