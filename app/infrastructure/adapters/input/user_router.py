@@ -58,8 +58,26 @@ def iniciar_sesion(login_in: schemas.LoginRequest, db: Session = Depends(get_db)
         )
     except Exception as e:
         logger.error(f"Error interno en login: {e}")
-        # Retornar un error 500 con un mensaje JSON válido
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor: {str(e)}"
         )
+
+@router.put("/profile", response_model=schemas.BasicResponse)
+def actualizar_perfil(profile_in: schemas.UpdateProfileRequest, db: Session = Depends(get_db)):
+    repo_adapter = PostgresUserRepositoryAdapter(db)
+    
+    user = repo_adapter.find_by_email(profile_in.email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Usuario no encontrado"
+        )
+    
+    user.rol = profile_in.rol
+    user.fullName = profile_in.fullName
+    user.phoneNumber = profile_in.phoneNumber
+    
+    repo_adapter.save(user)
+    
+    return {"message": "Perfil actualizado exitosamente"}
